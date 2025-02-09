@@ -1,12 +1,18 @@
-use neorg_syntax::parse::Parser;
+use neorg_syntax::kind::Token;
+use neorg_syntax::parser::Lexer;
 
 fn main() -> anyhow::Result<(), anyhow::Error> {
-    let input = include_str!("../../../examples/sample.norg");
-    let mut parser = Parser::new(input);
-    let (cst, _ast) = parser.parse()?;
-
-    println!("{:#?}", cst);
-
+    let input = include_str!("../../../examples/test.norg");
+    let mut l = Lexer::new(input);
+    for i in l.next_token() {
+        
+    }
+    while let token = l.next_token() {
+        if token == Token::Eof {
+            break;
+        }
+        println!("{:?}", token);
+    }
     Ok(())
 }
 
