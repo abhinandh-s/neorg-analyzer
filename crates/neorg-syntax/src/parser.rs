@@ -41,6 +41,33 @@ impl<'a> Lexer<'a> {
             Some('~') => self.read_ordered_list(),
             Some('@') => self.read_code_block(),
             Some('|') => self.read_task_marker(),
+
+            // Markup
+            Some('/') => self.read_markup_token(Token::Italic),
+            Some('_') => self.read_markup_token(Token::Underline),
+            Some('!') => self.read_markup_token(Token::Spoiler),
+            Some('`') => self.read_markup_token(Token::Verbatim),
+            Some('%') => self.read_markup_token(Token::Comment),
+
+            // Links
+            Some('{') => {
+                self.advance();
+                Token::LinkStart
+            }
+            Some('}') => {
+                self.advance();
+                Token::LinkEnd
+            }
+            Some('[') => {
+                self.advance();
+                Token::LinkDescStart
+            }
+            Some(']') => {
+                self.advance();
+                Token::LinkDescEnd
+            }
+
+            // Default to reading text
             Some(_) => self.read_text(),
             None => Token::Eof,
         }
@@ -72,23 +99,69 @@ impl Lexer<'_> {
     }
 
     #[inline]
-    fn read_task_marker(&self) -> Token {
-        todo!()
+    fn read_task_marker(&mut self) -> Token {
+        self.advance(); // eat |
+        if self.peek_char() == Some('(') {
+            self.advance();
+            Token::TaskMarkerStart
+        } else {
+            Token::Pipe
+        }
     }
 
     #[inline]
-    fn read_code_block(&self) -> Token {
-        todo!()
+    fn read_code_block(&mut self) -> Token {
+        self.advance(); // eat @
+        let text = self.read_until_whitespace();
+
+        if text == "code" {
+            self.skip_whitespace();
+            let language = if !self.is_at_line_end() {
+                Some(self.read_until_whitespace())
+            } else {
+                None
+            };
+            Token::CodeBlockStart { language }
+        } else {
+            // handle unknown @ directive as text
+            Token::Text(format!("@{}", text))
+        }
     }
 
     #[inline]
-    fn read_ordered_list(&self) -> Token {
-        todo!()
+    fn read_ordered_list(&mut self) -> Token {
+        let mut level = 0;
+        while self.peek_char() == Some('~') {
+            level += 1;
+            self.advance();
+        }
+        Token::OrderedList { level }
     }
 
     #[inline]
-    fn read_dash_token(&self) -> Token {
-        todo!()
+    fn read_dash_token(&mut self) -> Token {
+        let mut count = 0;
+        while self.peek_char() == Some('-') {
+            count += 1;
+            self.advance();
+        }
+
+        // Check if it's a reverse heading
+        if count >= 3 {
+            Token::ReverseHeading { levels: 1 }
+        } else {
+            Token::UnorderedList { level: count }
+        }
+    }
+
+    #[inline]
+    fn read_markup_token(&mut self, token_type: Token) -> Token {
+        self.advance();
+        if self.peek_char() == Some('|') {
+            self.advance();
+            // Handle pipe-delimited markup
+        }
+        token_type
     }
 }
 
