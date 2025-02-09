@@ -1,12 +1,5 @@
-use neorg_syntax::parse::Parser;
-
 fn main() -> anyhow::Result<(), anyhow::Error> {
     let input = include_str!("../../../examples/sample.norg");
-    let mut parser = Parser::new(input);
-    let (cst, _ast) = parser.parse()?;
-
-    println!("{:#?}", cst);
-
     Ok(())
 }
 

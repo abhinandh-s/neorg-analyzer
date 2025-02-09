@@ -1,61 +1,78 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum SyntaxKind {
-    /// the root
-    Document,
+use std::str::FromStr;
 
-    Paragraph,
-    Heading,
-    Text,
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Token {
+    // Structural tokens
+    Heading { level: usize },         // *
+    ReverseHeading { levels: usize }, // --- or ===
 
-    /// Styling
-    Bold,
-    Italic,
-    
-    LineBreak,
-    Error,
-    /// End of File
+    // List tokens
+    UnorderedList { level: usize }, // -
+    OrderedList { level: usize },   // ~
+
+    // Task status
+    TaskMarkerStart,        // |(
+    TaskMarkerEnd,          // )|
+    TaskStatus(TaskStatus), // Various status symbols
+
+    // Code blocks
+    CodeBlockStart { language: Option<String> }, // @code [lang]
+    CodeBlockEnd,                                // @end
+
+    // Markup tokens
+    Bold,          // *text*
+    Italic,        // /text/
+    Underline,     // _text_
+    Strikethrough, // -text-
+    Spoiler,       // !text!
+    Verbatim,      // text
+    Comment,       // %text%
+
+    // Link tokens
+    LinkStart,          // {
+    LinkEnd,            // }
+    LinkDescStart,      // [
+    LinkDescEnd,        // ]
+    LinkModifier(char), // #, *, /, etc.
+
+    // Text content
+    Text(String),
+    Whitespace(String),
+    Newline,
+
+    // Special characters
+    Pipe, // |
+
+    // End of file
     Eof,
-
-    /// Keywords
-    Code,
-    End,
-
-    /// Comments
-    LineComment,
-    BlockComment,
 }
 
-impl SyntaxKind {
-    /// Whether this is an error.
-    pub fn is_error(self) -> bool {
-        self == Self::Error
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TaskStatus {
+    Undone,     // ( )
+    Done,       // (x)
+    NeedsInput, // (?)
+    Urgent,     // (!)
+    Recurring,  // (+)
+    Pending,    // (-)
+    OnHold,     // (=)
+    Cancelled,  // (_)
+}
 
-    /// Is this node is a keyword.
-    pub fn is_keyword(self) -> bool {
-        matches!(self, Self::Code | Self::End)
-    }
+impl FromStr for TaskStatus {
+    type Err = ();
 
-    pub fn is_trivia(self) -> bool {
-        matches!(self, Self::LineComment | Self::BlockComment)
-    }
-
-    pub fn name(self) -> &'static str {
-        match self {
-            SyntaxKind::Document => "nil",
-            SyntaxKind::Heading => "nil",
-            SyntaxKind::Paragraph => "nil",
-            SyntaxKind::Text => "nil",
-            SyntaxKind::Bold => "nil",
-            SyntaxKind::Italic => "nil",
-            SyntaxKind::LineBreak => "nil",
-            SyntaxKind::Error => "nil",
-            SyntaxKind::End => "nil",
-            SyntaxKind::LineComment => "nil",
-            SyntaxKind::BlockComment => "nil",
-            SyntaxKind::Eof => "nil",
-            SyntaxKind::Code => "nil",
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            " " => Ok(TaskStatus::Undone),
+            "x" => Ok(TaskStatus::Done),
+            "?" => Ok(TaskStatus::NeedsInput),
+            "!" => Ok(TaskStatus::Urgent),
+            "+" => Ok(TaskStatus::Recurring),
+            "-" => Ok(TaskStatus::Pending),
+            "=" => Ok(TaskStatus::OnHold),
+            "_" => Ok(TaskStatus::Cancelled),
+            _ => Err(()),
         }
     }
 }
