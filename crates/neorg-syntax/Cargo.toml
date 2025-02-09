@@ -1,0 +1,27 @@
+[package]
+name = "neorg-syntax"
+edition = "2021"
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+description.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[features]
+default = []
+tower-lsp = ["dep:tower-lsp"]
+
+[dependencies]
+anyhow.workspace = true
+derive_more.workspace = true
+ecow.workspace = true
+ropey.workspace = true
+thiserror.workspace = true
+unicode-segmentation.workspace = true
+tower-lsp = { workspace = true, optional = true }
+
+[lints]
+workspace = true

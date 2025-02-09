@@ -1,0 +1,53 @@
+name: lime-analyzer
+
+on:
+  push:
+    branches: ["master"]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: v1.0.11
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - run: nix flake check
+      - run: nix develop
+
+    #  - name: Install rust and typst-cli
+    #    run: |
+    #      curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf -y | sh
+    #      rustup update
+          #      cargo install --locked typst-cli
+      - name: Compile source
+        run: nix run github:typst/typst -- compile inter/papers/p10/corporate/notes/main.typ inter/papers/p10/corporate/notes/main.pdf
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${RELEASE_VERSION}
+          release_name: Release ${RELEASE_VERSION}
+          draft: false
+          prerelease: false
+      - name: Upload PDF to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./inter/papers/p10/corporate/notes/main.pdf
+          asset_name: inter_p10_corporate_accounting_note.pdf
+          asset_content_type: application/pdf
