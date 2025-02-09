@@ -24,7 +24,7 @@ pub enum CSTNode {
     Heading {
         level: u8,
         content: Vec<CSTNode>,
-        markers: Span, // The '#' characters
+        markers: Span, // The '*' characters
         span: Span,
     },
     Paragraph {
@@ -78,7 +78,7 @@ impl CSTNode {
                     .unwrap_or(start);
                 Span::new(start, end, self.span().line, self.span().column)
             }
-            CSTNode::Text { span, .. } => span.clone(),
+            CSTNode::Text { span, .. } => *span,
             CSTNode::Bold {
                 content, markers, ..
             } => {
@@ -101,8 +101,8 @@ impl CSTNode {
                     .unwrap_or(start);
                 Span::new(start, end, self.span().line, self.span().column)
             }
-            CSTNode::LineBreak { span, .. } => span.clone(),
-            CSTNode::Error { error, .. } => error.span.clone(),
+            CSTNode::LineBreak { span, .. } => *span,
+            CSTNode::Error { error, .. } => error.span,
         }
     }
 
