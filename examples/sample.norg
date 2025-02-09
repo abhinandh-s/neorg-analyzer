@@ -1,10 +1,15 @@
 * this is H1
 ** this is H2
 *** this is H3
-
-    this is *bold*. 
-
-    this is /italic/ ssfffffffs
+**** this is H4
+***** this is H5
+****** this is H6
+******* this is H7
+******** this is H8
+         
+         this is *bold*. 
+         
+         this is /italic/ ssfffffffs
 
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas augue enim, gravida sed scelerisque ut, suscipit nec mi. Vivamus convallis malesuada lorem non imperdiet. Curabitur blandit sem purus, id feugiat est facilisis vitae. Donec ut libero rhoncus, egestas ex sed, ornare eros. Curabitur egestas ac nulla non vulputate. Donec eget odio turpis. Donec lacinia tortor eget lectus hendrerit, aliquam vulputate nisl accumsan. Maecenas tempus leo et aliquet hendrerit. Duis interdum est interdum risus auctor placerat. Donec id dapibus metus. Sed in quam at ex ornare lobortis id vitae dolor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec non sollicitudin nunc, quis vestibulum erat.
 

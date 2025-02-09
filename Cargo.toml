@@ -57,7 +57,7 @@ debug-assertions = false
 overflow-checks = false
 
 [workspace.lints.rust]
-unsafe_code = "forbid"
+unsafe_code = "warn"
 unused_labels = "allow"
 unreachable_pub = "deny"
 

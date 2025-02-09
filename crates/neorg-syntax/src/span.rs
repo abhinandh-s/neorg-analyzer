@@ -1,5 +1,7 @@
+use std::fmt::{self, Debug, Formatter};
+
 // Span information for tracking source positions
-#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
 pub struct Span {
     // start position of the span
     pub start: usize,
@@ -33,13 +35,48 @@ impl Span {
     }
 
     /// gives a fake Span which is detached from any source
-    pub fn detached(&self) -> Self {
+    pub fn detached() -> Self {
         Self {
             start: 1,
             end: 1,
             line: 1,
             column: 1,
         }
+    }
+}
+
+/// A value with a span locating it in the source code.
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub struct Spanned<T> {
+    /// The spanned value.
+    pub v: T,
+    /// The value's location in source code.
+    pub span: Span,
+}
+
+impl<T> Spanned<T> {
+    /// Create a new instance from a value and its span.
+    pub fn new(v: T, span: Span) -> Self {
+        Self { v, span }
+    }
+
+    /// Convert from `&Spanned<T>` to `Spanned<&T>`
+    pub fn as_ref(&self) -> Spanned<&T> {
+        Spanned { v: &self.v, span: self.span }
+    }
+
+    /// Map the value using a function.
+    pub fn map<F, U>(self, f: F) -> Spanned<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        Spanned { v: f(self.v), span: self.span }
+    }
+}
+
+impl<T: Debug> Debug for Spanned<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.v.fmt(f)
     }
 }
 

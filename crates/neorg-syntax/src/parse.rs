@@ -114,7 +114,7 @@ impl Parser {
         Ok((
             CSTNode::Document {
                 children: nodes,
-                span: span.clone(),
+                span,
             },
             span,
         ))
@@ -145,7 +145,7 @@ impl Parser {
                 level: level as u8,
                 content: vec![content],
                 markers: markers_span,
-                span: span.clone(),
+                span,
             },
             span,
         ))
@@ -164,7 +164,7 @@ impl Parser {
         Ok((
             CSTNode::Paragraph {
                 content: nodes,
-                span: span.clone(),
+                span,
             },
             span,
         ))
@@ -190,7 +190,7 @@ impl Parser {
                 let start = self.pos;
                 self.consume_char();
                 let span = Span::new(start, self.pos, self.line, self.column);
-                Ok((CSTNode::LineBreak { span: span.clone() }, span))
+                Ok((CSTNode::LineBreak { span }, span))
             }
             _ => self.parse_text(),
         }
@@ -219,7 +219,7 @@ impl Parser {
             CSTNode::Bold {
                 content,
                 markers: markers_span,
-                span: span.clone(),
+                span,
             },
             span,
         ))
@@ -246,7 +246,7 @@ impl Parser {
             CSTNode::Italic {
                 content,
                 markers: markers_span,
-                span: span.clone(),
+                span,
             },
             span,
         ))
@@ -268,7 +268,7 @@ impl Parser {
         Ok((
             CSTNode::Text {
                 content,
-                span: span.clone(),
+                span,
             },
             span,
         ))
