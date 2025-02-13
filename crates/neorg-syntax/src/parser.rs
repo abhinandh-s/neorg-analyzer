@@ -13,6 +13,15 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
+    pub fn lex(input: &'a str) -> Vec<Token> {
+        let mut tokens = Vec::new();
+        let mut l = Self::new(input);
+        while l.next_token() != Token::Eof {
+            tokens.push(l.next_token().clone());
+        }
+        tokens
+    }
+
     pub fn new(input: &'a str) -> Self {
         Self {
             input,
