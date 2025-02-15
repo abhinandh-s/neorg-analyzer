@@ -1,197 +1,265 @@
-#![allow(dead_code)]
-
-use std::fmt::Display;
-
-use ecow::EcoString;
-use unicode_segmentation::UnicodeSegmentation;
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Span {
-    pub start: usize,
-    pub end: usize,
-}
-
-impl Span {
-    pub fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum SyntaxKind {
-    HeadingMarker,
-    Text,
-    Slash,
-    Space,
-    Asterisk,
-    Newline,
-}
-
-#[derive(Debug, Clone)]
-pub struct Token {
-    pub kind: SyntaxKind,
-    pub text: EcoString,
-    pub span: usize,
-}
-
-impl Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:?}: [text: {:?}, span: {}]",
-            self.kind, self.text, self.span
-        )
-    }
-}
-
-impl Token {
-    pub fn new(kind: SyntaxKind, text: EcoString, span: usize) -> Self {
-        Self { kind, text, span }
-    }
-    pub fn to_span(&self, span: usize) -> Span {
-        Span::new(span, span + self.text.len())
-    }
-}
-
-fn tokenize(input: &str) -> Vec<Token> {
-    let mut ve = Vec::new();
-    let inp = input
-        .split_word_bound_indices()
-        .collect::<Vec<(usize, &str)>>();
-    for (span, text) in inp {
-        let tok = match text {
-            " " => SyntaxKind::Space,
-            "*" => SyntaxKind::HeadingMarker,
-            "/" => SyntaxKind::Slash,
-            "\n" => SyntaxKind::Newline,
-            _ => SyntaxKind::Text,
-        };
-        let token = Token::new(tok, text.into(), span);
-        ve.push(token);
-    }
-    ve
-}
+use nom::branch::alt;
+use nom::bytes::complete::{is_not, tag};
+use nom::character::complete::{char, line_ending, multispace0, not_line_ending};
+use nom::combinator::map_res;
+use nom::error::Error;
+use nom::multi::{many0, many1};
+use nom::sequence::{delimited, pair, terminated};
+use nom::{IResult, Parser as _};
 
 fn main() {
-    let input = "* heading\n this is a ";
-    let tokens = tokenize(input);
-    for _tok in &tokens {
-        //    println!("{}", tok);
-    }
-    let mut ast = Parser::new(tokens);
-    let parsed = ast.parse();
-    println!("{:#?}", parsed);
+    let parser = Parser::new(include_str!("../../../examples/test.norg").to_owned()).parse();
+    println!("{:#?}", parser);
 }
 
-#[derive(Debug)]
-pub enum NodeKind {
-    Heading,
-    Paragraph,
-    Text,
+//Logical representation of markdown elements.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Element {
+    Heading { level: usize, text: String },
+    Divider,
+    Blockquote { text: String },
+    Bold { text: String },
+    Comment { text: String },
+    Italics { text: String },
+    Strikethrough { text: String },
+    PlainText { text: String },
+    InlineCode { text: String },
 }
 
-#[derive(Debug)]
-pub struct Node {
-    pub kind: NodeKind,
-    pub children: Vec<Node>,
-    pub token: Option<Token>,
-}
-
-impl Node {
-    pub fn new(kind: NodeKind, token: Option<Token>) -> Self {
-        Self {
-            kind,
-            children: Vec::new(),
-            token,
-        }
-    }
-}
-
-struct Parser {
-    tokens: Vec<Token>,
-    current: usize,
+pub struct Parser {
+    contents: String,
 }
 
 impl Parser {
-    fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, current: 0 }
-    }
+    pub fn new(contents: String) -> Self {
+        let mut new_contents = contents.clone();
 
-    fn peek(&self) -> Option<&Token> {
-        self.tokens.get(self.current)
-    }
-
-    fn advance(&mut self) -> Option<Token> {
-        let token = self.tokens.get(self.current).cloned();
-        if token.is_some() {
-            self.current += 1;
+        if !new_contents.ends_with("\n") {
+            println!("contents does not end with \\n");
+            new_contents.push('\n');
         }
-        token
+
+        Self { contents }
     }
 
-    fn parse_heading(&mut self) -> Node {
-        let mut node = Node::new(NodeKind::Heading, None);
-        while let Some(token) = self.advance() {
-            match token.kind {
-                SyntaxKind::Newline => break,
-                _ => node.children.push(Node::new(NodeKind::Text, Some(token))),
-            }
-        }
-        node
+    pub fn parse(&self) -> Vec<Element> {
+        // Produces a vector of elements
+        let (_residual, elements): (&str, Vec<_>) = many0(
+            /* Wrapped in "multispace0" to remove newlines & spaces */
+            alt((
+                delimited(
+                    multispace0,
+                    alt((
+                        Self::headings,
+                        Self::comment,
+                        Self::divider,
+                        Self::blockquote,
+                        Self::bold,
+                        Self::italics,
+                        Self::inline_code,
+                        Self::strikethrough,
+                        /* plaintext, but mapped into an element */
+                        map_res(
+                            Self::plain_text,
+                            |text: &str| -> Result<Element, Error<&str>> {
+                                Ok(Element::PlainText {
+                                    text: text.to_owned(),
+                                })
+                            },
+                        ),
+                    )),
+                    multispace0,
+                ),
+                /* hacky way to consume all residual text
+                 * Handles the "a*b" case.
+                 */
+                map_res(
+                    is_not("\n\r"),
+                    |text: &str| -> Result<Element, Error<&str>> {
+                        Ok(Element::PlainText {
+                            text: text.to_owned(),
+                        })
+                    },
+                ),
+            )),
+        )
+        .parse(self.contents.as_str())
+        .unwrap();
+
+        elements
     }
 
-    fn parse_paragraph(&mut self) -> Node {
-        let mut node = Node::new(NodeKind::Paragraph, None);
-        while let Some(token) = self.advance() {
-            match token.kind {
-                SyntaxKind::Newline => break,
-                _ => node.children.push(Node::new(NodeKind::Text, Some(token))),
-            }
-        }
-        node
+    fn headings(input: &str) -> IResult<&str, Element> {
+        map_res(
+            terminated(
+                pair(many1(char::<&str, _>('*')), not_line_ending),
+                line_ending,
+            ),
+            |(hashtags, text)| -> Result<Element, Error<&str>> {
+                // Heading "level" (size) is defined by the amount of '#'s
+                let level = hashtags.len();
+                Ok(Element::Heading {
+                    level,
+                    text: text.trim().to_owned(),
+                })
+            },
+        )
+        .parse(input)
     }
 
-    fn parse(&mut self) -> Vec<Node> {
-        let mut nodes = Vec::new();
-        while let Some(token) = self.peek() {
-            match token.kind {
-                SyntaxKind::Asterisk => nodes.push(self.parse_heading()),
-                _ => nodes.push(self.parse_paragraph()),
-            }
-        }
-        nodes
+    fn divider(input: &str) -> IResult<&str, Element> {
+        map_res(tag("---\n"), |_| -> Result<Element, Error<&str>> {
+            Ok(Element::Divider)
+        })
+        .parse(input)
     }
 
-    fn heading(&mut self) {}
-}
+    fn blockquote(input: &str) -> IResult<&str, Element> {
+        map_res(
+            many1(delimited(char('>'), not_line_ending, line_ending)),
+            |texts| -> Result<Element, Error<&str>> {
+                let text = texts.into_iter().fold(String::new(), |mut a, line: &str| {
+                    a.push_str(line.trim());
+                    a.push_str("\r\n");
+                    a
+                });
 
-enum Repr {
-    Heading(Heading),
-    Bold(Bold),
-}
+                Ok(Element::Blockquote { text })
+            },
+        )
+        .parse(input)
+    }
 
-enum Heading {
-    Markers(Vec<Token>),
-    Space(Token),
-    Text(Vec<Token>),
-    Newline(Token),
-}
-enum Bold {
-    MarkersStr(Token),
-    Text(Vec<Token>),
-    MarkersEnd(Token),
+    fn bold(input: &str) -> IResult<&str, Element> {
+        map_res(
+            delimited(tag("*"), Self::plain_text, tag("*")),
+            |text: &str| -> Result<Element, Error<&str>> {
+                Ok(Element::Bold {
+                    text: text.to_owned(),
+                })
+            },
+        )
+        .parse(input)
+    }
+    fn comment(input: &str) -> IResult<&str, Element> {
+        map_res(
+            delimited(tag("%"), Self::plain_text, tag("%")),
+            |text: &str| -> Result<Element, Error<&str>> {
+                Ok(Element::Comment {
+                    text: text.to_owned(),
+                })
+            },
+        )
+        .parse(input)
+    }
+    fn italics(input: &str) -> IResult<&str, Element> {
+        map_res(
+            delimited(tag("/"), Self::plain_text, tag("/")),
+            |text: &str| -> Result<Element, Error<&str>> {
+                Ok(Element::Italics {
+                    text: text.to_owned(),
+                })
+            },
+        )
+        .parse(input)
+    }
+
+    fn inline_code(input: &str) -> IResult<&str, Element> {
+        map_res(
+            delimited(tag("`"), Self::plain_text, tag("`")),
+            |text: &str| -> Result<Element, Error<&str>> {
+                Ok(Element::InlineCode {
+                    text: text.to_owned(),
+                })
+            },
+        )
+        .parse(input)
+    }
+
+    fn strikethrough(input: &str) -> IResult<&str, Element> {
+        map_res(
+            delimited(tag("~~"), Self::plain_text, tag("~~")),
+            |text: &str| -> Result<Element, Error<&str>> {
+                Ok(Element::Strikethrough {
+                    text: text.to_owned(),
+                })
+            },
+        )
+        .parse(input)
+    }
+
+    fn plain_text(input: &str) -> IResult<&str, &str> {
+        is_not("%/*`~\n\r").parse(input)
+    }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]
-    fn token_span_001() {
-        let input = (0, "Heading");
+    fn test_markdown() {
+        let input = r"
+# Big heading
+Hello!
+### Small heading
+divider?
+---
+divided.
+> blockquote
+> deez
+> nuts
+**bold text**
+*italic text*
+unclosed *italic
+`let x = 69;`
+~~strikethru text~~
+";
 
-        let new = Token::new(SyntaxKind::Space, input.1.into(), input.0);
+        let elements = Parser::new(input.to_owned()).parse();
 
-        assert_eq!(Span::new(0, 7), new.to_span(input.0))
+        let expected = vec![
+            Element::Heading {
+                level: 1,
+                text: "Big heading".to_owned(),
+            },
+            Element::PlainText {
+                text: "Hello!".to_owned(),
+            },
+            Element::Heading {
+                level: 3,
+                text: "Small heading".to_owned(),
+            },
+            Element::PlainText {
+                text: "divider?".to_owned(),
+            },
+            Element::Divider,
+            Element::PlainText {
+                text: "divided.".to_owned(),
+            },
+            Element::Blockquote {
+                text: "blockquote\r\ndeez\r\nnuts\r\n".to_owned(),
+            },
+            Element::Bold {
+                text: "bold text".to_owned(),
+            },
+            Element::Italics {
+                text: "italic text".to_owned(),
+            },
+            Element::PlainText {
+                text: "unclosed ".to_owned(),
+            },
+            Element::PlainText {
+                text: "*italic".to_owned(),
+            },
+            Element::InlineCode {
+                text: "let x = 69;".to_owned(),
+            },
+            Element::Strikethrough {
+                text: "strikethru text".to_owned(),
+            },
+        ];
+
+        assert_eq!(elements, expected);
     }
 }

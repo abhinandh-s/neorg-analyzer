@@ -15,6 +15,7 @@ default = []
 tower-lsp = ["dep:tower-lsp"]
 
 [dependencies]
+nom = "8.0.0"
 anyhow.workspace = true
 derive_more.workspace = true
 ecow.workspace = true
@@ -24,4 +25,4 @@ unicode-segmentation.workspace = true
 tower-lsp = { workspace = true, optional = true }
 
 [lints]
-workspace = true
+# workspace = true
