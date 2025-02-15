@@ -2,6 +2,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::kind::Token;
 
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Lexer<'a> {
@@ -254,5 +255,16 @@ impl NeorgChar for char {
             self,
             '*' | '-' | '~' | '@' | '|' | '/' | '_' | '!' | '`' | '%' | '{' | '}' | '[' | ']'
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn lex_test() {
+        let input = "* Heading";
+
+        let i = super::Lexer::lex(input);
+        assert_eq!(i, vec![super::Token::Text("Heading".to_owned())])
     }
 }

@@ -1,0 +1,11 @@
+Markup: 820 [Space: "\n", Heading: 23 [HeadingMarker: "=", Space: " ", Markup: 21 [Text: "ACCOUNTING FOR SHARES"]], Parbreak: "\n\n", Heading: 21 [HeadingMarker: "==", Space: " ", Mark
+up: 18 [Text: "Meaning of Company"]], Space: "\n", ListItem: 111 [ListMarker: "-", Space: " ", Markup: 109 [Text: "Company is a", Space: " ", Strong: 23 [Star: "*", Markup: 21 [Text: "
+Voluntary Association"], Star: "*"], Space: " ", Text: "of persons created under law with a common seal and perpetual succession"]], Space: "\n", ListItem: 169 [ListMarker: "-", Space:
+ " ", Markup: 167 [Text: "Company has", Space: " ", Strong: 29 [Star: "*", Markup: 27 [Text: "independent legal existence"], Star: "*"], Space: " ", Text: "from its members. Accordingl
+y, it can hold, purchase or sell property, incur and pay debt, open bank account in its own name."]], Space: "\n", ListItem: 249 [ListMarker: "-", Space: " ", Markup: 247 [Text: "The c
+apital of the company is known as", Space: " ", Strong: 15 [Star: "*", Markup: 13 [Text: "Share capital"], Star: "*"], Text: ", which is divided into units called as", Space: " ", Stro
+ng: 8 [Star: "*", Markup: 6 [Text: "Shares"], Star: "*"], Text: ". Share is a part of the capital of company. A person who buys shares are known as", Space: " ", Strong: 14 [Star: "*",
+ Markup: 12 [Text: "Shareholders"], Star: "*"], Text: ". They are the owners or members of the company."]], Space: "\n", ListItem: 69 [ListMarker: "-", Space: " ", Markup: 67 [Text: "S
+ince company is created by law, it can only be", Space: " ", Strong: 18 [Star: "*", Markup: 16 [Text: "dissolved by law"], Star: "*"], Text: "."]], Space: "\n", ListItem: 168 [ListMark
+er: "-", Space: " ", Markup: 166 [Text: "In India, companies are regulated by", Space: " ", Text: "“", Strong: 25 [Star: "*", Markup: 23 [Text: "The Companies Act, 2013"], Star: "*"], 
+Text: "”. It comes under the administrative purview of Ministry of Corporate Affairs, Government of India."]], Parbreak: "\n\n"]

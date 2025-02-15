@@ -1,17 +1,8 @@
-use neorg_syntax::parser::Lexer;
+// use neorg_syntax::lexer;
 
-fn main() -> anyhow::Result<(), anyhow::Error> {
-    let input = include_str!("../../../examples/test.norg");
-    
-    for i in Lexer::lex(input) {
-        println!("{:?}", i);
-    }
-
-    //while let token = l.next_token() {
-    //    if token == Token::Eof {
-    //        break;
-    //    }
-    //    println!("{:?}", token);
-    //}
-    Ok(())
+fn main() {
+    println!("Hello, world!");
+   // let mut l = lexer::Lexer::new(include_str!("../../../examples/test.norg"));
+   // let v = l.lex();
+   // println!("{:?}", v);
 }

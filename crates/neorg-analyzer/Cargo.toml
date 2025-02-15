@@ -12,6 +12,7 @@ keywords.workspace = true
 
 [dependencies]
 neorg-syntax = { workspace = true, features = ["tower-lsp"] }
+neorg-lang = { workspace = true, features = ["tower-lsp"] }
 env_logger.workspace = true
 ropey.workspace = true
 anyhow.workspace = true
@@ -21,7 +22,6 @@ ecow.workspace = true
 itertools.workspace = true
 oxc_index.workspace = true
 serde.workspace = true
-regex.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

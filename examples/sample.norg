@@ -1,3 +1,17 @@
+
+%-- TODO: this is a comment% 
+%-- NOTE: this is a comment% 
+%-- TEST: this is a comment% 
+%-- FIX: this is a comment% 
+%-- BUG: this is a comment% 
+
+#comment
+vim:tw=100:ft=norg:norl:conceallevel=2:concealcursor=nv: // this is the syntax
+
+@table
+
+@end
+
 * this is H1
 ** this is H2
 *** this is H3
