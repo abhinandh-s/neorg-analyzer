@@ -1,45 +1,11 @@
 #![allow(dead_code)]
 
-use std::sync::Arc;
-
-use dashmap::DashMap;
-use ropey::Rope;
 use serde_json::Value;
-use tower_lsp::{jsonrpc::Result, lsp_types::*, Client, LanguageServer};
-
-use crate::span::position_to_offset;
+use tower_lsp::{Client, LanguageServer, jsonrpc::Result, lsp_types::*};
 
 #[derive(Debug)]
 pub struct Backend {
     pub client: Client,
-    // Maps a document URI to its text content
-    pub doc_map: DashMap<Arc<String>, Rope>,
-}
-
-impl Backend {
-    /// params will give the range of the document that changed and the actual content changes
-    /// we will we will replace that range in doc_map with changed content
-    /// -- FIX: not tested
-    async fn on_change(&self, params: DidChangeTextDocumentParams) {
-        // The document that did change.
-        let uri = params.text_document.uri.to_string();
-        for change in params.content_changes {
-            // The range of the document that changed.
-            if let Some(range) = change.range {
-                // The actual content changes.
-                let text = change.text;
-                let (start, end) = (range.start, range.end);
-                if let Some(doc) = self.doc_map.get(&uri.to_string()) {
-                    let mut rope = doc.value().to_owned();
-                    let start_idx = position_to_offset(start, &rope).get_or_insert(0).to_owned();
-                    let end_idx = position_to_offset(end, &rope).get_or_insert(0).to_owned();
-                    rope.remove(start_idx..end_idx);
-                    rope.insert(start_idx, &text);
-                    self.doc_map.insert(uri.clone().into(), rope);
-                }
-            }
-        }
-    }
 }
 
 #[tower_lsp::async_trait]
@@ -84,8 +50,7 @@ impl LanguageServer for Backend {
         Ok(())
     }
 
-    async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
-        let _p = params.event.added;
+    async fn did_change_workspace_folders(&self, _: DidChangeWorkspaceFoldersParams) {
         self.client
             .log_message(MessageType::INFO, "workspace folders changed!")
             .await;
@@ -117,21 +82,15 @@ impl LanguageServer for Backend {
         Ok(None)
     }
 
-    async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        let text_document = params.text_document.clone();
-        self.doc_map.insert(
-            text_document.uri.to_string().into(),
-            Rope::from_str(text_document.text.to_string().as_str()),
-        );
+    async fn did_open(&self, _: DidOpenTextDocumentParams) {
         self.client
-            .log_message(MessageType::ERROR, "file opened!")
+            .log_message(MessageType::INFO, "file opened!")
             .await;
     }
 
-    async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        self.on_change(params).await;
+    async fn did_change(&self, _: DidChangeTextDocumentParams) {
         self.client
-            .log_message(MessageType::ERROR, "file changed!")
+            .log_message(MessageType::INFO, "file changed!")
             .await;
     }
 
@@ -148,13 +107,34 @@ impl LanguageServer for Backend {
     }
 
     async fn completion(&self, _: CompletionParams) -> Result<Option<CompletionResponse>> {
-        Ok(provide_completions())
+        provide_completions()
     }
 }
 
-pub fn provide_completions() -> Option<CompletionResponse> {
-    Some(CompletionResponse::Array(vec![CompletionItem::new_simple(
-        "Bye".to_owned(),
-        "More detail".to_owned(),
-    )]))
+fn provide_completions() -> Result<Option<CompletionResponse>> {
+    let res = CompletionResponse::Array(heading());
+    Ok(Some(res))
+}
+
+fn heading() -> Vec<CompletionItem> {
+    let mut text = String::new();
+    let mut vec = Vec::new();
+    for i in 1..6 {
+        text.push('*');
+        vec.push(CompletionItem {
+            label: format!("h{}", i),
+            label_details: Some(CompletionItemLabelDetails {
+                detail: Some("lsp".to_owned()),
+                description: None,
+            }),
+            kind: Some(CompletionItemKind::SNIPPET),
+            // detail: todo!(),
+            // documentation: todo!(),
+            insert_text: Some(format!("{} ", text)),
+            // text_edit: todo!(),
+            // additional_text_edits: todo!(),
+            ..Default::default()
+        });
+    }
+    vec
 }

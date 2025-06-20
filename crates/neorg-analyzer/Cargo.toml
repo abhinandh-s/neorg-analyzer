@@ -1,6 +1,6 @@
 [package]
 name = "neorg-analyzer"
-edition = "2021"
+edition = "2024"
 version.workspace = true
 license.workspace = true
 authors.workspace = true
@@ -11,7 +11,7 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
-neorg-syntax = { workspace = true, features = ["tower-lsp"] }
+neorg-syntax = { workspace = true, features = ["tower_lsp"] }
 env_logger.workspace = true
 ropey.workspace = true
 anyhow.workspace = true
