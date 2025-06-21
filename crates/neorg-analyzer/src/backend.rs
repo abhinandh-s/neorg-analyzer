@@ -119,17 +119,17 @@ fn provide_completions() -> Result<Option<CompletionResponse>> {
 fn heading() -> Vec<CompletionItem> {
     let mut text = String::new();
     let mut vec = Vec::new();
-    for i in 1..6 {
+    for i in 1..7 {
         text.push('*');
+        let doc = format!("level {} heading\n\n`{} $0`", i, text);
         vec.push(CompletionItem {
             label: format!("h{}", i),
-            label_details: Some(CompletionItemLabelDetails {
-                detail: Some("lsp".to_owned()),
-                description: None,
-            }),
             kind: Some(CompletionItemKind::SNIPPET),
-            // detail: todo!(),
-            // documentation: todo!(),
+            detail: Some(format!("h{} _ [neorg-analyzer]", i)), 
+            documentation: Some(Documentation::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: doc + "",
+            })),
             insert_text: Some(format!("{} ", text)),
             // text_edit: todo!(),
             // additional_text_edits: todo!(),
