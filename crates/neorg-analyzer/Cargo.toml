@@ -11,7 +11,7 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
-neorg-syntax = { workspace = true, features = ["tower_lsp"] }
+neorg-syntax = { workspace = true, features = ["tower-lsp"] }
 env_logger.workspace = true
 ropey.workspace = true
 anyhow.workspace = true

@@ -37,7 +37,8 @@ serde_json = "1.0.134"
 serde_yml = "0.0.12"
 regex = "1.11.1"
 ropey = "1.6.1"
-neorg-syntax = { git = "https://github.com/abhinandh-s/neorg-syntax", features = ["tower_lsp"] }
+# neorg-syntax = { git = "https://github.com/abhinandh-s/neorg-syntax", features = ["tower_lsp"] }
+neorg-syntax = { path = "../neorg-syntax", features = ["tower-lsp"] }
 tower-lsp = "0.20.0"
 tokio = { version = "1.42.0", features = ["full"] }
 tracing-subscriber = "0.3.19"
