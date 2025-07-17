@@ -191,16 +191,16 @@ impl Backend {
         let rope = ropey::Rope::from_str(params.text);
         self.document_map
             .insert(params.uri.to_string(), rope.clone());
-        let p = params.uri.to_string();
-        let diagnostics = self.fake_diagnostics(p);
+        let p = params.uri.as_str();
+        let diagnostics = self.get_diagnostics(p);
 
         self.client
             .publish_diagnostics(params.uri.clone(), diagnostics, params.version)
             .await;
     }
 
-    fn fake_diagnostics(&self, uri: String) -> Vec<Diagnostic> {
-        match self.document_map.get(&uri) {
+    fn get_diagnostics(&self, uri: &str) -> Vec<Diagnostic> {
+        match self.document_map.get(uri) {
             Some(source) => {
 
             let source = source.to_string();
