@@ -11,17 +11,14 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
+reqwest = { version = "0.12.22", default-features = false, features = ["json", "blocking", "rustls-tls"]}
 neorg-syntax = { workspace = true, features = ["tower-lsp"] }
-env_logger.workspace = true
 ropey.workspace = true
 anyhow.workspace = true
 dashmap.workspace = true
 dirs.workspace = true
 ecow.workspace = true
-itertools.workspace = true
-oxc_index.workspace = true
 serde.workspace = true
-regex.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

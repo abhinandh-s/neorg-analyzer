@@ -1,3 +1,5 @@
+use tower_lsp::lsp_types::Position;
+
 use dashmap::DashMap;
 
 use ropey::Rope;
@@ -8,10 +10,13 @@ use tower_lsp::lsp_types::notification::Notification;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
+use crate::handle::HandleHover;
+
 #[derive(Debug)]
 pub struct Backend {
     pub client: Client,
     pub document_map: DashMap<String, Rope>,
+    pub cst_map: DashMap<String, neorg_syntax::SyntaxNode>,
 }
 
 #[tower_lsp::async_trait]
@@ -21,6 +26,7 @@ impl LanguageServer for Backend {
             server_info: None,
             capabilities: ServerCapabilities {
                 inlay_hint_provider: Some(OneOf::Left(true)),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
                     TextDocumentSyncOptions {
                         open_close: Some(true),
@@ -165,6 +171,11 @@ impl LanguageServer for Backend {
 
         Ok(None)
     }
+
+    /// Handle hover requests
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        self.provide_hover_ctx(params).await
+    }
 }
 #[derive(Debug, Deserialize, Serialize)]
 struct InlayHintParams {
@@ -183,34 +194,25 @@ struct TextDocumentItem<'a> {
     version: Option<i32>,
 }
 
-use tower_lsp::lsp_types::{Diagnostic, Position};
-
 impl Backend {
     async fn on_change(&self, params: TextDocumentItem<'_>) {
         dbg!(&params.version);
         let rope = ropey::Rope::from_str(params.text);
         self.document_map
             .insert(params.uri.to_string(), rope.clone());
-        let p = params.uri.as_str();
-        let diagnostics = self.get_diagnostics(p);
+        let uri = params.uri.as_str();
+
+        let diagnostics = self.get_diagnostics(uri);
+        if let Some(source) = self.document_map.get(uri) {
+            let source = source.to_string();
+            let mut p = neorg_syntax::Parser::new(&source);
+            let parsed = neorg_syntax::document(&mut p);
+            self.cst_map.insert(uri.to_owned(), parsed);
+        }
 
         self.client
             .publish_diagnostics(params.uri.clone(), diagnostics, params.version)
             .await;
-    }
-
-    fn get_diagnostics(&self, uri: &str) -> Vec<Diagnostic> {
-        match self.document_map.get(uri) {
-            Some(source) => {
-
-            let source = source.to_string();
-                let mut p = neorg_syntax::Parser::new(&source);
-                let parsed = neorg_syntax::document(&mut p);
-                neorg_syntax::get_diagnostics(parsed) 
-            },
-            None => vec![],
-
-        }
     }
 }
 

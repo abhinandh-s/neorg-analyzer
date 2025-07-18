@@ -8,6 +8,10 @@ async fn main() {
 
     let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
 
-    let (service, socket) = LspService::new(|client| Backend {client, document_map: DashMap::new() });
+    let (service, socket) = LspService::new(|client| Backend {
+        client,
+        document_map: DashMap::new(),
+        cst_map: DashMap::new(),
+    });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
