@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use serde::Deserialize;
 use tower_lsp::jsonrpc::Error;
 use tower_lsp::lsp_types::{
@@ -35,13 +37,9 @@ impl HandleHover for Backend {
                     && (character >= start_char)
                     && (character <= last_char)
                 {
-                    hover_ctx.push_str("hover_ctx for: ");
                     if let Ok(meaning) = get_meaning(word.text()).await {
                         hover_ctx.push_str(&meaning);
                     }
-                    // let ctx = format!("hover_ctx for `{}`", meaning);
-                    // hover_ctx.push_str(&ctx);
-                    // hover_ctx.push_str("this is content");
                 }
             }
 
@@ -58,22 +56,79 @@ impl HandleHover for Backend {
 }
 
 #[derive(Debug, Deserialize)]
-struct DictionaryEntry {
-    meanings: Vec<Meaning>,
+pub(crate) struct DictionaryEntry {
+    pub(crate) word: String,
+    pub(crate) phonetic: Option<String>,
+    pub(crate) origin: Option<String>,
+    pub(crate) meanings: Vec<Meaning>,
 }
 
 #[derive(Debug, Deserialize)]
-struct Meaning {
+pub(crate) struct Meaning {
     #[serde(rename = "partOfSpeech")]
-    part_of_speech: String,
-
-    definitions: Vec<Definition>,
+    pub(crate) part_of_speech: String,
+    pub(crate) definitions: Vec<Definition>,
+}
+impl From<&Meaning> for MarkDown {
+    fn from(value: &Meaning) -> Self {
+        let mut md = String::new();
+        let heading = format!("## {}\n", value.part_of_speech);
+        md.push_str(&heading);
+        for definition in &value.definitions {
+            let MarkDown(content) = definition.into();
+            md.push_str(&content);
+            md.push('\n');
+        }
+        Self(md)
+    }
 }
 
 #[derive(Debug, Deserialize)]
-struct Definition {
-    definition: String,
-    example: Option<String>,
+pub(crate) struct Definition {
+    pub(crate) definition: String,
+    pub(crate) example: Option<String>,
+}
+
+impl From<&Definition> for MarkDown {
+    fn from(value: &Definition) -> Self {
+        let mut md = String::new();
+        md.push_str(value.definition.as_ref());
+        md.push_str("\n \n");
+        if let Some(example) = &value.example {
+            md.push_str("> Example: \n");
+            md.push_str("> ");
+            md.push_str(example.as_ref());
+            md.push('\n');
+        }
+        Self(md)
+    }
+}
+
+struct MarkDown(String);
+
+impl From<&DictionaryEntry> for MarkDown {
+    fn from(value: &DictionaryEntry) -> Self {
+        let mut md = String::new();
+        md.push_str("# ");
+        md.push_str(value.word.as_str());
+        if let Some(phonetic) = &value.phonetic {
+            md.push('\t');
+            md.push_str(phonetic);
+        }
+        md.push('\n');
+        md.push('\n');
+        if let Some(origin) = &value.origin {
+            md.push_str("## Origin\n");
+            md.push('\t');
+            md.push_str(origin);
+            md.push('\n');
+        }
+        for i in &value.meanings {
+            let MarkDown(content) = i.into();
+            md.push_str(&content);
+        }
+        Self(md)
+    }
 }
 
 async fn get_meaning(word: &str) -> Result<String, reqwest::Error> {
@@ -84,16 +139,9 @@ async fn get_meaning(word: &str) -> Result<String, reqwest::Error> {
     let mut result = String::new();
 
     if let Some(entry) = entries.first() {
-        if let Some(meaning) = entry.meanings.first() {
-            if let Some(def) = meaning.definitions.first() {
-                result.push_str(&format!("**Definition**: {}\n", def.definition));
-                if let Some(example) = &def.example {
-                    result.push_str(&format!("**Example**: _{}_", example));
-                }
-            }
-        }
+        let MarkDown(content) = entry.into();
+        result.push_str(&content);
     }
 
     Ok(result)
 }
-
