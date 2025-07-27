@@ -9,3 +9,6 @@ fmt:
 
 watch:
   cargo watch -c -x 'build --all'
+
+build:
+  cargo b && rm ~/.cargo/__cache/target/debug/neorg-analyzer && cp target/debug/neorg-analyzer ~/.cargo/__cache/target/debug/neorg-analyzer

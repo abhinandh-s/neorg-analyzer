@@ -10,8 +10,6 @@ use tower_lsp::lsp_types::notification::Notification;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-use crate::handle::HandleHover;
-
 #[derive(Debug)]
 pub struct Backend {
     pub client: Client,
@@ -27,6 +25,17 @@ impl LanguageServer for Backend {
             capabilities: ServerCapabilities {
                 inlay_hint_provider: Some(OneOf::Left(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
+                code_action_provider: Some(CodeActionProviderCapability::Options(
+                    CodeActionOptions {
+                        code_action_kinds: Some(vec![
+                            CodeActionKind::QUICKFIX,
+                        ]),
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: Some(true),
+                        },
+                        resolve_provider: Some(true),
+                    },
+                )),
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
                     TextDocumentSyncOptions {
                         open_close: Some(true),
@@ -174,9 +183,17 @@ impl LanguageServer for Backend {
 
     /// Handle hover requests
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+       use crate::handle::HandleHover; 
         self.provide_hover_ctx(params).await
     }
+    
+    /// Handle code action requests
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        use crate::handle::HandleCodeAction;
+        self.provide_code_action(params).await
+    }
 }
+
 #[derive(Debug, Deserialize, Serialize)]
 struct InlayHintParams {
     path: String,
@@ -196,7 +213,6 @@ struct TextDocumentItem<'a> {
 
 impl Backend {
     async fn on_change(&self, params: TextDocumentItem<'_>) {
-        dbg!(&params.version);
         let rope = ropey::Rope::from_str(params.text);
         self.document_map
             .insert(params.uri.to_string(), rope.clone());
