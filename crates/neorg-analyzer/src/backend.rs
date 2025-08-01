@@ -27,9 +27,7 @@ impl LanguageServer for Backend {
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 code_action_provider: Some(CodeActionProviderCapability::Options(
                     CodeActionOptions {
-                        code_action_kinds: Some(vec![
-                            CodeActionKind::QUICKFIX,
-                        ]),
+                        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
                         work_done_progress_options: WorkDoneProgressOptions {
                             work_done_progress: Some(true),
                         },
@@ -69,6 +67,31 @@ impl LanguageServer for Backend {
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 rename_provider: Some(OneOf::Left(true)),
+                semantic_tokens_provider: Some(
+                    SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(
+                        SemanticTokensRegistrationOptions {
+                            text_document_registration_options: {
+                                TextDocumentRegistrationOptions {
+                                    document_selector: Some(vec![DocumentFilter {
+                                        language: Some("norg".to_owned()),
+                                        scheme: Some("file".to_owned()),
+                                        pattern: None,
+                                    }]),
+                                }
+                            },
+                            semantic_tokens_options: SemanticTokensOptions {
+                                work_done_progress_options: WorkDoneProgressOptions::default(),
+                                legend: SemanticTokensLegend {
+                                    token_types: neorg_syntax::highlight::LEGEND_TYPE.into(),
+                                    token_modifiers: vec![],
+                                },
+                                range: Some(true),
+                                full: Some(SemanticTokensFullOptions::Bool(true)),
+                            },
+                            static_registration_options: StaticRegistrationOptions::default(),
+                        },
+                    ),
+                ),
                 ..ServerCapabilities::default()
             },
         })
@@ -130,9 +153,19 @@ impl LanguageServer for Backend {
 
     async fn semantic_tokens_full(
         &self,
-        _params: SemanticTokensParams,
+        params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
-        Ok(None)
+        let key = params.text_document.uri.to_string();
+        let tokens = self
+            .cst_map
+            .get(&key)
+            .map_or(SemanticTokens::default(), |node| {
+                let mut hl = neorg_syntax::highlight::Highlight::new(node.to_owned());
+                hl.get().clone()
+            });
+
+        eprintln!("semantic_tokens_full");
+        Ok(Some(SemanticTokensResult::Tokens(tokens)))
     }
 
     async fn semantic_tokens_range(
@@ -183,10 +216,10 @@ impl LanguageServer for Backend {
 
     /// Handle hover requests
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
-       use crate::handle::HandleHover; 
+        use crate::handle::HandleHover;
         self.provide_hover_ctx(params).await
     }
-    
+
     /// Handle code action requests
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
         use crate::handle::HandleCodeAction;

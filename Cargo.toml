@@ -17,25 +17,19 @@ members = [
 ]
 
 [workspace.dependencies]
-languagetool-rust = "^2.1"
 serde = { version = "1.0.217", features = ["derive"] }
 anyhow = "1.0.95"
 thiserror = "2.0.11"
 dirs = "6.0.0"
 ecow = "0.2.3"
-derive_more = { version = "2.0.1", default-features = false, features = ["from"] }
-chrono = "0.4.39"
 dashmap = "6.1.0"
 env_logger = "0.11.6"
 serde_json = "1.0.134"
-serde_yml = "0.0.12"
 ropey = "1.6.1"
 neorg-syntax = { path = "../neorg-syntax", features = ["tower-lsp"] }
 tower-lsp = "0.20.0"
 tokio = { version = "1.42.0", features = ["full"] }
 tracing-subscriber = "0.3.19"
-walkdir = "2.5.0"
-unicode-segmentation = "1.12.0"
 
 [profile.release]
 panic = 'abort'
