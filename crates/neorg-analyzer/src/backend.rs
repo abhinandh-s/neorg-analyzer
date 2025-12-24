@@ -23,6 +23,8 @@ impl LanguageServer for Backend {
         Ok(InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {
+                document_formatting_provider: Some(OneOf::Left(true)),
+                position_encoding: Some(PositionEncodingKind::UTF16),
                 inlay_hint_provider: Some(OneOf::Left(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 code_action_provider: Some(CodeActionProviderCapability::Options(
@@ -37,7 +39,7 @@ impl LanguageServer for Backend {
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
                     TextDocumentSyncOptions {
                         open_close: Some(true),
-                        change: Some(TextDocumentSyncKind::FULL),
+                        change: Some(TextDocumentSyncKind::INCREMENTAL),
                         save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
                             include_text: Some(true),
                         })),
@@ -85,7 +87,7 @@ impl LanguageServer for Backend {
                                     token_types: neorg_syntax::highlight::LEGEND_TYPE.into(),
                                     token_modifiers: vec![],
                                 },
-                                range: Some(true),
+                                range: None,
                                 full: Some(SemanticTokensFullOptions::Bool(true)),
                             },
                             static_registration_options: StaticRegistrationOptions::default(),
@@ -105,22 +107,63 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        eprintln!("file opened");
-        self.on_change(TextDocumentItem {
-            uri: params.text_document.uri,
-            text: &params.text_document.text,
-            version: Some(params.text_document.version),
-        })
-        .await
+        let (key, text) = (
+            params.text_document.uri.to_string(),
+            params.text_document.text,
+        );
+
+        // insert new doc into document map
+        self.document_map.insert(key.clone(), text.into());
+
+        // Update the CST map with the new CST
+        if let Some(ctx) = self.document_map.get(&key) {
+            let cst = neorg_syntax::cst!(&ctx.to_string());
+            self.cst_map.insert(key, cst);
+        }
+
+        //  if let Ok(diagnostics) = self.provide_diagnostics(params.text_document.uri.clone()) {
+        //      // Publish the diagnostics to the client
+        //      self.client
+        //          .publish_diagnostics(params.text_document.uri.clone(), diagnostics, None)
+        //          .await;
+        //  }
+        //  self.client
+        //      .log_message(
+        //          MessageType::INFO,
+        //          format!("Opened file: {}", text_document.uri),
+        //      )
+        //      .await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        self.on_change(TextDocumentItem {
-            text: &params.content_changes[0].text,
-            uri: params.text_document.uri,
-            version: Some(params.text_document.version),
-        })
-        .await
+        self.on_change(params).await
+    }
+
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let mut res = Vec::new();
+        let key = params.text_document.uri.to_string();
+
+        if let Some(text) = self.document_map.get(&key)
+            && let Some(new_text) = neorg_syntax::cst!(&text.to_string()).format()
+        {
+            let lines_count = text.lines().count();
+            let start = Position {
+                line: 0,
+                character: 0,
+            };
+            let end = if let Some(last_line) = text.lines().last() {
+                Position {
+                    line: lines_count as u32 - 1,
+                    character: last_line.chars().count() as u32,
+                }
+            } else {
+                start
+            };
+            let range = Range { start, end };
+            res.push(TextEdit { range, new_text });
+        }
+        dbg!(&res);
+        Ok(Some(res))
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
@@ -131,7 +174,7 @@ impl LanguageServer for Backend {
                 text: &text,
                 version: None,
             };
-            self.on_change(item).await;
+            //  self.on_change(item).await;
             _ = self.client.semantic_tokens_refresh().await;
         }
         eprintln!("file saved!");
@@ -160,8 +203,10 @@ impl LanguageServer for Backend {
             .cst_map
             .get(&key)
             .map_or(SemanticTokens::default(), |node| {
-                let mut hl = neorg_syntax::highlight::Highlight::new(node.to_owned());
-                hl.get().clone()
+                tower_lsp::lsp_types::SemanticTokens {
+                    result_id: None,
+                    data: node.collect_semantic_tokens(),
+                }
             });
 
         eprintln!("semantic_tokens_full");
@@ -179,7 +224,22 @@ impl LanguageServer for Backend {
         &self,
         _params: tower_lsp::lsp_types::InlayHintParams,
     ) -> Result<Option<Vec<InlayHint>>> {
-        Ok(None)
+        let mut hints = Vec::new();
+        let test = InlayHint {
+            position: Position {
+                line: 1,
+                character: 2,
+            },
+            label: InlayHintLabel::String("01".to_owned()),
+            kind: Some(InlayHintKind::TYPE),
+            padding_left: Some(false),
+            padding_right: Some(true),
+            data: None,
+            text_edits: None,
+            tooltip: None,
+        };
+        hints.push(test);
+        Ok(Some(hints))
     }
 
     async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
@@ -244,24 +304,54 @@ struct TextDocumentItem<'a> {
     version: Option<i32>,
 }
 
+#[allow(ungated_async_fn_track_caller)]
 impl Backend {
-    async fn on_change(&self, params: TextDocumentItem<'_>) {
-        let rope = ropey::Rope::from_str(params.text);
-        self.document_map
-            .insert(params.uri.to_string(), rope.clone());
-        let uri = params.uri.as_str();
+    #[track_caller]
+    async fn on_change(&self, params: DidChangeTextDocumentParams) {
+        // 01. get key
+        // 02. get mutated Ropey for that key
+        // 03. update Ropey from vec of changes in params
+        let key = params.text_document.uri.to_string();
 
-        let diagnostics = self.get_diagnostics(uri);
-        if let Some(source) = self.document_map.get(uri) {
+        if let Some(mut doc) = self.document_map.get_mut(&key) {
+            for change in params.content_changes {
+                // Get the document content
+                let rope = doc.value_mut();
+                match change.range {
+                    Some(r) => {}
+                    None => eprintln!("impossible"),
+                }
+                // Get the range of the change
+                if let Some(range) = change.range {
+                    // Get the start and end positions of the range
+                    // Convert the position to an offset
+                    let start_idx = position_to_offset(range.start, rope).unwrap_or(0);
+                    let end_idx =
+                        position_to_offset(range.end, rope).unwrap_or(rope.len_utf16_cu());
+                    // Replace the text in the range with the new text
+                    rope.remove(start_idx..end_idx);
+                    rope.insert(start_idx, &change.text);
+                } else {
+                    // If range is None, replace the whole text
+                    rope.remove(0..rope.len_chars());
+                    rope.insert(0, &change.text);
+                }
+            }
+        }
+
+        // let rope = ropey::Rope::from_str(params.text);
+        // self.document_map
+        //     .insert(params.uri.to_string(), rope.clone());
+        // let uri = params.uri.as_str();
+
+        // == diagnostics ==
+        let _diagnostics = self.get_diagnostics(&key);
+        if let Some(source) = self.document_map.get(&key) {
             let source = source.to_string();
             let mut p = neorg_syntax::Parser::new(&source);
             let parsed = neorg_syntax::document(&mut p);
-            self.cst_map.insert(uri.to_owned(), parsed);
+            self.cst_map.insert(key.to_owned(), parsed);
         }
-
-        self.client
-            .publish_diagnostics(params.uri.clone(), diagnostics, params.version)
-            .await;
     }
 }
 
