@@ -3,7 +3,6 @@ use tower_lsp::lsp_types::Position;
 use dashmap::DashMap;
 
 use ropey::Rope;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::notification::Notification;
@@ -168,19 +167,16 @@ impl LanguageServer for Backend {
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         dbg!(&params.text);
-        if let Some(text) = params.text {
-            let item = TextDocumentItem {
-                uri: params.text_document.uri,
-                text: &text,
-                version: None,
-            };
+        if let Some(_text) = params.text {
             //  self.on_change(item).await;
             _ = self.client.semantic_tokens_refresh().await;
         }
         eprintln!("file saved!");
     }
-    async fn did_close(&self, _: DidCloseTextDocumentParams) {
-        eprintln!("file closed!");
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        let key = params.text_document.uri.to_string();
+        self.document_map.remove(&key);
+        self.cst_map.remove(&key);
     }
 
     async fn goto_definition(
@@ -287,21 +283,11 @@ impl LanguageServer for Backend {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-struct InlayHintParams {
-    path: String,
-}
-
 #[allow(unused)]
 enum CustomNotification {}
 impl Notification for CustomNotification {
     type Params = InlayHintParams;
     const METHOD: &'static str = "custom/notification";
-}
-struct TextDocumentItem<'a> {
-    uri: Url,
-    text: &'a str,
-    version: Option<i32>,
 }
 
 #[allow(ungated_async_fn_track_caller)]
@@ -317,10 +303,7 @@ impl Backend {
             for change in params.content_changes {
                 // Get the document content
                 let rope = doc.value_mut();
-                match change.range {
-                    Some(r) => {}
-                    None => eprintln!("impossible"),
-                }
+
                 // Get the range of the change
                 if let Some(range) = change.range {
                     // Get the start and end positions of the range
@@ -365,5 +348,5 @@ pub fn offset_to_position(offset: usize, rope: &Rope) -> Option<Position> {
 pub fn position_to_offset(position: Position, rope: &Rope) -> Option<usize> {
     let line_char_offset = rope.try_line_to_char(position.line as usize).ok()?;
     let slice = rope.slice(0..line_char_offset + position.character as usize);
-    Some(slice.len_bytes())
+    Some(slice.len_utf16_cu())
 }

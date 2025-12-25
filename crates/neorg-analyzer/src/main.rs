@@ -1,6 +1,5 @@
 use dashmap::DashMap;
 use neorg_analyzer::backend::Backend;
-use ropey::Rope;
 use tower_lsp::{LspService, Server};
 
 #[tokio::main]
