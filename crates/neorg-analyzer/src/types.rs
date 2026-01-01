@@ -36,7 +36,7 @@ pub type Synonym<'a> = &'a str;
 pub(crate) struct DictionaryEntry {
     pub(crate) word: String,
     pub(crate) phonetic: Option<String>,
-     pub(crate) phonetics: Vec<Phonetic>,
+    pub(crate) phonetics: Vec<Phonetic>,
     pub(crate) origin: Option<String>,
     pub(crate) meanings: Vec<Meaning>,
 }
@@ -62,15 +62,40 @@ pub(crate) struct Definition {
     pub(crate) antonyms: Vec<String>,
 }
 
+pub(crate) struct MarkDown(pub(crate) String);
+
+impl Deref for MarkDown {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+
+pub(crate) struct Neorg(pub(crate) String);
+
+impl Deref for Neorg {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl From<&Meaning> for MarkDown {
     fn from(value: &Meaning) -> Self {
         let mut md = String::new();
-        let heading = format!("## {}\n", value.part_of_speech);
+        let heading = format!("## {}\n\n", value.part_of_speech);
         md.push_str(&heading);
+        let mut i = 1;
         for definition in &value.definitions {
             let MarkDown(content) = definition.into();
-            md.push_str(&content);
-            md.push('\n');
+            md.push_str(&format!("{i}. {content}"));
+            if !md.ends_with('\n') {
+                md.push('\n');
+            }
+            i += 1;
         }
         Self(md)
     }
@@ -82,26 +107,15 @@ impl From<&Definition> for MarkDown {
         md.push_str(value.definition.as_ref());
         md.push_str("\n \n");
         if let Some(example) = &value.example {
-            md.push_str("Example: \n");
-            md.push_str("```\n");
+            md.push_str("> ### Example: \n");
+            md.push_str(">     - ");
             md.push_str(example.as_ref());
-            md.push_str("```\n");
+            md.push('\n');
             md.push('\n');
         }
         Self(md)
     }
 }
-
-pub(crate) struct MarkDown(pub(crate) String);
-
-impl Deref for MarkDown {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 
 impl From<&DictionaryEntry> for MarkDown {
     fn from(value: &DictionaryEntry) -> Self {
@@ -128,6 +142,66 @@ impl From<&DictionaryEntry> for MarkDown {
     }
 }
 
+impl From<&Meaning> for Neorg {
+    fn from(value: &Meaning) -> Self {
+        let mut md = String::new();
+        let heading = format!("** {}\n\n", value.part_of_speech);
+        md.push_str(&heading);
+        let mut i = 1;
+        for definition in &value.definitions {
+            let MarkDown(content) = definition.into();
+            md.push_str(&format!("{i}. {content}"));
+            if !md.ends_with('\n') {
+                md.push('\n');
+            }
+            i += 1;
+        }
+        Self(md)
+    }
+}
+
+impl From<&Definition> for Neorg {
+    fn from(value: &Definition) -> Self {
+        let mut md = String::new();
+        md.push_str(value.definition.as_ref());
+        md.push_str("\n \n");
+        if let Some(example) = &value.example {
+            md.push_str("> *** Example: \n");
+            md.push_str(">     - ");
+            md.push_str(example.as_ref());
+            md.push('\n');
+            md.push('\n');
+        }
+        Self(md)
+    }
+}
+
+impl From<&DictionaryEntry> for Neorg {
+    fn from(value: &DictionaryEntry) -> Self {
+        let mut md = String::new();
+        md.push_str("* ");
+        md.push_str(value.word.as_str());
+        if let Some(phonetic) = &value.phonetic {
+            md.push('\t');
+            md.push_str(phonetic);
+        }
+        md.push('\n');
+        md.push('\n');
+        if let Some(origin) = &value.origin {
+            md.push_str("** Origin\n");
+            md.push('\t');
+            md.push_str(origin);
+            md.push('\n');
+        }
+        for i in &value.meanings {
+            let MarkDown(content) = i.into();
+            md.push_str(&content);
+        }
+        Self(md)
+    }
+}
+
+
 #[macro_export]
 macro_rules! position {
     () => {
@@ -135,7 +209,7 @@ macro_rules! position {
             line: 0,
             character: 0,
         }
-    }
+    };
 }
 
 #[macro_export]
@@ -145,11 +219,11 @@ macro_rules! range {
             start: tower_lsp::lsp_types::Position {
                 line: 0,
                 character: 0,
-        },
+            },
             end: tower_lsp::lsp_types::Position {
                 line: 0,
                 character: 0,
             },
         }
-    }
+    };
 }

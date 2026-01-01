@@ -16,6 +16,32 @@ pub struct Backend {
     pub cst_map: DashMap<String, neorg_syntax::SyntaxNode>,
 }
 
+/*
+
+
+
+
+    /// The [`textDocument/prepareRename`] request is sent from the client to the server to setup
+    /// and test the validity of a rename operation at a given location.
+    ///
+    /// [`textDocument/prepareRename`]: https://microsoft.github.io/language-server-protocol/specification#textDocument_prepareRename
+    ///
+    /// # Compatibility
+    ///
+    /// This request was introduced in specification version 3.12.0.
+    #[rpc(name = "textDocument/prepareRename")]
+    async fn prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> Result<Option<PrepareRenameResponse>> {
+        let _ = params;
+        error!("Got a textDocument/prepareRename request, but it is not implemented");
+        Err(Error::method_not_found())
+    }
+
+
+*/
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
@@ -23,6 +49,10 @@ impl LanguageServer for Backend {
             server_info: None,
             capabilities: ServerCapabilities {
                 document_formatting_provider: Some(OneOf::Left(true)),
+                document_on_type_formatting_provider: Some(DocumentOnTypeFormattingOptions {
+                    first_trigger_character: ';'.to_string(), // not working
+                    more_trigger_character: Some(vec!["\n".to_owned()]),
+                }),
                 position_encoding: Some(PositionEncodingKind::UTF16),
                 inlay_hint_provider: Some(OneOf::Left(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
@@ -64,7 +94,6 @@ impl LanguageServer for Backend {
                     }),
                     file_operations: None,
                 }),
-                // definition: Some(GotoCapability::default()),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 rename_provider: Some(OneOf::Left(true)),
@@ -165,8 +194,22 @@ impl LanguageServer for Backend {
         Ok(Some(res))
     }
 
+    async fn on_type_formatting(
+        &self,
+        p: DocumentOnTypeFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
+        eprintln!("pressed trigger characters!");
+        let p = DocumentFormattingParams {
+            text_document: p.text_document_position.text_document,
+            options: p.options,
+            work_done_progress_params: WorkDoneProgressParams {
+                work_done_token: None,
+            },
+        };
+        self.formatting(p).await
+    }
+
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        dbg!(&params.text);
         if let Some(_text) = params.text {
             //  self.on_change(item).await;
             _ = self.client.semantic_tokens_refresh().await;
@@ -181,9 +224,13 @@ impl LanguageServer for Backend {
 
     async fn goto_definition(
         &self,
-        _params: GotoDefinitionParams,
+        params: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
-        Ok(None)
+        use crate::handle::HandleDefinition;
+        match self.provide_def_ctx(params).await {
+            Ok(def) => Ok(def),
+            Err(_) => Ok(None),
+        }
     }
 
     async fn references(&self, _params: ReferenceParams) -> Result<Option<Vec<Location>>> {
@@ -205,7 +252,6 @@ impl LanguageServer for Backend {
                 }
             });
 
-        eprintln!("semantic_tokens_full");
         Ok(Some(SemanticTokensResult::Tokens(tokens)))
     }
 
@@ -228,7 +274,7 @@ impl LanguageServer for Backend {
             },
             label: InlayHintLabel::String("01".to_owned()),
             kind: Some(InlayHintKind::TYPE),
-            padding_left: Some(false),
+            padding_left: Some(true),
             padding_right: Some(true),
             data: None,
             text_edits: None,
@@ -242,7 +288,7 @@ impl LanguageServer for Backend {
         Ok(None)
     }
 
-    async fn rename(&self, _params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
         Ok(None)
     }
 
