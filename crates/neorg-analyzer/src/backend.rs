@@ -289,7 +289,7 @@ impl LanguageServer for Backend {
     }
 
     async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
-        Ok(None)
+        Ok(self.provide_rename(params))
     }
 
     async fn did_change_configuration(&self, _: DidChangeConfigurationParams) {

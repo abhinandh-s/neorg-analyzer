@@ -1,7 +1,7 @@
 mod diagnostics; 
 mod hover;
 mod code_action;
-pub mod rename;
+pub(crate) mod rename;
 
 pub(crate) use hover::HandleHover;
 pub(crate) use hover::HandleDefinition;
