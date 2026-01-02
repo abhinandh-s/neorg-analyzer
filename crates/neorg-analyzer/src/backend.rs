@@ -112,7 +112,7 @@ impl LanguageServer for Backend {
                             semantic_tokens_options: SemanticTokensOptions {
                                 work_done_progress_options: WorkDoneProgressOptions::default(),
                                 legend: SemanticTokensLegend {
-                                    token_types: neorg_syntax::highlight::LEGEND_TYPE.into(),
+                                    token_types: crate::neorg::LEGEND_TYPE.into(),
                                     token_modifiers: vec![],
                                 },
                                 range: None,
