@@ -39,14 +39,14 @@ impl HandleDefinition for Backend {
         if !Path::new(&path).exists() {
             let _ = tokio::fs::create_dir_all(&path).await;
         }
-        let uri = params
+        let key = params
             .text_document_position_params
             .text_document
             .uri
-            .to_string();
+            .as_str();
 
-        if let Some(s) = self.cst_map.get(uri.as_str()) {
-            let node = s.to_owned();
+        if let Some(sytaxnode) = self.cst_map.get(key) {
+            let node = sytaxnode.to_owned();
             let words = neorg_syntax::get_kinds(neorg_syntax::SyntaxKind::Word, node);
             for word in words {
                 if contains_pos(word.range(), params.text_document_position_params.position) {

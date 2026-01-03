@@ -281,7 +281,8 @@ impl LanguageServer for Backend {
             tooltip: None,
         };
         hints.push(test);
-        Ok(Some(hints))
+        // Ok(Some(hints))
+        Ok(None)
     }
 
     async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
