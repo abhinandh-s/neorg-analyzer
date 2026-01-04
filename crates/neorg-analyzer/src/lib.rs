@@ -1,6 +1,6 @@
 pub mod backend;
-pub mod span;
 mod handle;
+pub mod span;
 pub use neorg_syntax as neorg;
 pub mod types;
 

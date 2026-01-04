@@ -72,7 +72,6 @@ impl Deref for MarkDown {
     }
 }
 
-
 pub(crate) struct Neorg(pub(crate) String);
 
 impl Deref for Neorg {
@@ -200,7 +199,6 @@ impl From<&DictionaryEntry> for Neorg {
         Self(md)
     }
 }
-
 
 #[macro_export]
 macro_rules! position {

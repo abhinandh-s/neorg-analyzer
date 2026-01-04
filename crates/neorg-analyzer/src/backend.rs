@@ -17,10 +17,6 @@ pub struct Backend {
 }
 
 /*
-
-
-
-
     /// The [`textDocument/prepareRename`] request is sent from the client to the server to setup
     /// and test the validity of a rename operation at a given location.
     ///
@@ -38,8 +34,6 @@ pub struct Backend {
         error!("Got a textDocument/prepareRename request, but it is not implemented");
         Err(Error::method_not_found())
     }
-
-
 */
 
 #[tower_lsp::async_trait]
@@ -131,6 +125,7 @@ impl LanguageServer for Backend {
     }
 
     async fn shutdown(&self) -> Result<()> {
+        eprintln!("shutting down...");
         Ok(())
     }
 
@@ -148,6 +143,12 @@ impl LanguageServer for Backend {
             let cst = neorg_syntax::cst!(&ctx.to_string());
             self.cst_map.insert(key, cst);
         }
+
+        // == diagnostics ==
+        let diagnostics = self.get_diagnostics(params.text_document.uri.as_str());
+        self.client
+            .publish_diagnostics(params.text_document.uri.clone(), diagnostics, None)
+            .await;
 
         //  if let Ok(diagnostics) = self.provide_diagnostics(params.text_document.uri.clone()) {
         //      // Publish the diagnostics to the client
@@ -214,6 +215,12 @@ impl LanguageServer for Backend {
             //  self.on_change(item).await;
             _ = self.client.semantic_tokens_refresh().await;
         }
+
+        // == diagnostics ==
+        let diagnostics = self.get_diagnostics(params.text_document.uri.as_str());
+        self.client
+            .publish_diagnostics(params.text_document.uri.clone(), diagnostics, None)
+            .await;
         eprintln!("file saved!");
     }
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -369,13 +376,12 @@ impl Backend {
             }
         }
 
-        // let rope = ropey::Rope::from_str(params.text);
-        // self.document_map
-        //     .insert(params.uri.to_string(), rope.clone());
-        // let uri = params.uri.as_str();
-
         // == diagnostics ==
-        let _diagnostics = self.get_diagnostics(&key);
+        let diagnostics = self.get_diagnostics(&key);
+        self.client
+            .publish_diagnostics(params.text_document.uri.clone(), diagnostics, None)
+            .await;
+
         if let Some(source) = self.document_map.get(&key) {
             let source = source.to_string();
             let mut p = neorg_syntax::Parser::new(&source);

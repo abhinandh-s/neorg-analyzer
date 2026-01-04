@@ -95,7 +95,7 @@ async fn get_synonyms(word: &str) -> Result<HashSet<String>, reqwest::Error> {
 
     for entry in entries {
         for meaning in &entry.meanings {
-                set.extend(meaning.synonyms.clone());
+            set.extend(meaning.synonyms.clone());
             for def in &meaning.definitions {
                 set.extend(def.synonyms.clone());
             }

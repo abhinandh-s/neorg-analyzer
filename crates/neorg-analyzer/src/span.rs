@@ -1,4 +1,7 @@
-pub fn offset_to_position(offset: usize, rope: &ropey::Rope) -> Option<tower_lsp::lsp_types::Position> {
+pub fn offset_to_position(
+    offset: usize,
+    rope: &ropey::Rope,
+) -> Option<tower_lsp::lsp_types::Position> {
     let line = rope.try_char_to_line(offset).ok()?;
     let first_char_of_line = rope.try_line_to_char(line).ok()?;
     let column = offset - first_char_of_line;
